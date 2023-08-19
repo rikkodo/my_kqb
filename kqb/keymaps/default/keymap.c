@@ -48,8 +48,10 @@ extern matrix_row_t* matrix_mouse_dest;
 extern bool          mouse_send_flag;
 extern bool          is_encoder_action;
 
-static uint8_t spd_rate_num       = 1;
-static uint8_t spd_rate_den       = 1;
+static uint8_t cur_spd_rate_num       = 1;
+static uint8_t cur_spd_rate_den       = 1;
+static uint8_t scr_spd_rate_num       = 1;
+static uint8_t scr_spd_rate_den       = 32;
 static int16_t gesture_move_x     = 0;
 static int16_t gesture_move_y     = 0;
 static bool    gesture_wait       = false;
@@ -225,6 +227,11 @@ void post_process_record_user(uint16_t keycode, keyrecord_t* record) {
     }
 }
 
+// スクロールレイヤーかを判定する。
+bool isScrollLayer() {
+    return IS_LAYER_ON(8) || IS_LAYER_ON(9);
+}
+
 void mouse_report_hook(mouse_parse_result_t const* report) {
     if (debug_enable) {
         xprintf("Mouse report\n");
@@ -284,8 +291,22 @@ void mouse_report_hook(mouse_parse_result_t const* report) {
     mouse_send_flag      = true;
     report_mouse_t mouse = pointing_device_get_report();
 
+    static bool is_scroll_prev = false;
+
     static int16_t x_rem;
     static int16_t y_rem;
+
+    bool is_scroll = isScrollLayer();
+
+    // scrollが入れ替わったら、残分を消す
+    if (is_scroll != is_scroll_prev) {
+        x_rem = 0;
+        y_rem = 0;
+
+        is_scroll_prev = is_scroll;
+    }
+    uint8_t spd_rate_den = is_scroll ? scr_spd_rate_den : cur_spd_rate_den;
+    uint8_t spd_rate_num = is_scroll ? scr_spd_rate_num : cur_spd_rate_num;
 
     int16_t x = (x_rem + report->x) * spd_rate_num / spd_rate_den;
     int16_t y = (y_rem + report->y) * spd_rate_num / spd_rate_den;
@@ -298,8 +319,16 @@ void mouse_report_hook(mouse_parse_result_t const* report) {
         y_rem = 0;
     }
 
-    mouse.x += x;
-    mouse.y += y;
+    if (is_scroll) {
+        if (debug_enable) {
+            xprintf("OnScroll\n");
+        }
+        mouse.v -= y;
+        mouse.h -= x;
+    } else {
+        mouse.x += x;
+        mouse.y += y;
+    }
 
     pointing_device_set_report(mouse);
 
