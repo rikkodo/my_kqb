@@ -7,10 +7,12 @@ Keyboard Quantizeの自分用ファームウェア
 以下に対応
 
 * 既定のレイヤーの際に、カーソル移動をスクロールに変更。
-
-やりたいこと
-
-* RelaconのメディアキーをRemapで変更できるようにする。
+* Elecom RelaconのメディアキーをRemapで変更できるようにする。以下割り振りをしているのでRemupで割り振れる。
+  * +: LANG5
+  * -: LANG6
+  * <<: LANG7
+  * \>>: LANG8
+  * |>: LANG9
 
 ## 参照
 

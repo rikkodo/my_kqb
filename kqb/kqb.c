@@ -33,38 +33,40 @@
 
 #define LEN(x) (sizeof(x) / sizeof(x[0]))
 
-extern bool    ch559_update_mode;
+extern bool ch559_update_mode;
 extern uint8_t device_cnt;
 extern uint8_t hid_info_cnt;
 
 keyboard_config_t keyboard_config;
 uint8_t qt_cmd_buf[3];
-bool    qt_cmd_new;
+bool qt_cmd_new;
 
-uint8_t  encoder_modifier                = 0;
-uint16_t encoder_modifier_pressed_ms     = 0;
-bool     is_encoder_action               = false;
+uint8_t encoder_modifier = 0;
+uint16_t encoder_modifier_pressed_ms = 0;
+bool is_encoder_action = false;
 
 #ifndef ENCODER_MODIFIER_TIMEOUT_MS
-#    define ENCODER_MODIFIER_TIMEOUT_MS 500
+#define ENCODER_MODIFIER_TIMEOUT_MS 500
 #endif
 
 bool bmp_config_overwrite(bmp_api_config_t const *const config_on_storage,
-                          bmp_api_config_t *const       keyboard_config) {
+                          bmp_api_config_t *const keyboard_config)
+{
 
     memcpy(keyboard_config, config_on_storage, sizeof(*keyboard_config));
 
     keyboard_config->mode = SINGLE;
     memcpy(&keyboard_config->device_info, &default_config.device_info,
            sizeof(keyboard_config->device_info));
-    keyboard_config->param_peripheral.max_interval  = 8;
-    keyboard_config->param_peripheral.min_interval  = 8;
+    keyboard_config->param_peripheral.max_interval = 8;
+    keyboard_config->param_peripheral.min_interval = 8;
     keyboard_config->param_peripheral.slave_latency = 7;
 
     return true;
 }
 
-void create_user_file() {
+void create_user_file()
+{
     static const char build_guide[] =
         "<meta http-equiv=\"refresh\" "
         "content=\"0;URL=\'https://github.com/sekigon-gonnoc/\'\"/>";
@@ -84,26 +86,31 @@ void create_user_file() {
 static uint8_t buf[1024];
 static uint16_t widx, ridx, cnt;
 
-void uart_buf_init(void) {
+void uart_buf_init(void)
+{
     memset(buf, 0, sizeof(buf));
     widx = 0;
     ridx = 0;
-    cnt  = 0;
+    cnt = 0;
 }
 
-void uart_recv_callback(uint8_t dat) {
-    if (cnt < sizeof(buf) - 1) {
+void uart_recv_callback(uint8_t dat)
+{
+    if (cnt < sizeof(buf) - 1)
+    {
         buf[widx] = dat;
-        widx      = (widx + 1) % sizeof(buf);
+        widx = (widx + 1) % sizeof(buf);
         cnt++;
     }
 }
 
 bool uart_available() { return cnt > 0; }
 
-uint8_t uart_getchar() {
+uint8_t uart_getchar()
+{
     uint8_t c = 0;
-    if (cnt > 0) {
+    if (cnt > 0)
+    {
         c = buf[ridx];
         cnt--;
         ridx = (ridx + 1) % sizeof(buf);
@@ -112,11 +119,13 @@ uint8_t uart_getchar() {
     return c;
 }
 
-void uart_putchar(uint8_t c) {
+void uart_putchar(uint8_t c)
+{
     BMPAPI->uart.send(&c, 1);
 }
 
-int send_reset_cmd(void) {
+int send_reset_cmd(void)
+{
     // send reset command to ch559
 
     writePinHigh(KQB_PIN_CHRST);
@@ -126,78 +135,97 @@ int send_reset_cmd(void) {
     return 0;
 }
 
-int send_load_cmd(uint8_t time) {
-    if (!qt_cmd_new) {
+int send_load_cmd(uint8_t time)
+{
+    if (!qt_cmd_new)
+    {
         dprintf("send load command:%d\n", time);
         qt_cmd_buf[0] = 'l';
         qt_cmd_buf[1] = time;
         qt_cmd_buf[2] = '\n';
-        qt_cmd_new    = true;
+        qt_cmd_new = true;
 
         return 0;
-    } else {
+    }
+    else
+    {
         return 1;
     }
 }
 
-int send_led_cmd(uint8_t led) {
-    if (!qt_cmd_new) {
+int send_led_cmd(uint8_t led)
+{
+    if (!qt_cmd_new)
+    {
         dprintf("send led command:%d\n", led);
         qt_cmd_buf[0] = 0x80 | led;
-        qt_cmd_new    = true;
+        qt_cmd_new = true;
 
         return 0;
-    } else {
+    }
+    else
+    {
         return 1;
     }
 }
 
-void eeconfig_init_kb(void) {
+void eeconfig_init_kb(void)
+{
     keyboard_config.raw = 0;
     eeconfig_update_kb(keyboard_config.raw);
 }
 
-void matrix_init_kb(void) {
+void matrix_init_kb(void)
+{
     keyboard_config.raw = eeconfig_read_kb();
     set_key_override(keyboard_config.override_mode);
 }
 
-void matrix_scan_kb(void) {
-    bmp_api_config_t const * config = BMPAPI->app.get_config();
+void matrix_scan_kb(void)
+{
+    bmp_api_config_t const *config = BMPAPI->app.get_config();
     static uint32_t timer = UINT32_MAX >> 1; // To run at first loop
 
     if ((!is_usb_connected()) &&
         config->reserved[3] > 0 &&
-        timer_elapsed32(timer) > (uint32_t)config->reserved[3] * 1000) {
-        uint32_t duty =  (config->reserved[4] < 50) ? config->reserved[4] : 50;
+        timer_elapsed32(timer) > (uint32_t)config->reserved[3] * 1000)
+    {
+        uint32_t duty = (config->reserved[4] < 50) ? config->reserved[4] : 50;
         uint32_t duration = (uint32_t)config->reserved[3] * duty / 10; //  /100*10 (% * 0.1s)
         int res = send_load_cmd(duration > 0xff ? 0xff : duration);
 
-        if (res == 0) {
+        if (res == 0)
+        {
             timer = timer_read32();
         }
     }
 
     static uint8_t usb_led_indicator_recv;
     static uint8_t ble_led_indicator_recv;
-    if (get_usb_enabled()) {
+    if (get_usb_enabled())
+    {
         uint8_t current = BMPAPI->usb.get_indicator_led();
         ble_led_indicator_recv = 0;
-        if (current != usb_led_indicator_recv) {
+        if (current != usb_led_indicator_recv)
+        {
             usb_led_indicator_recv = current;
             send_led_cmd(current);
         }
-    } else if (get_ble_enabled()) {
+    }
+    else if (get_ble_enabled())
+    {
         uint8_t current = BMPAPI->ble.get_indicator_led();
         usb_led_indicator_recv = 0;
-        if (current != ble_led_indicator_recv) {
+        if (current != ble_led_indicator_recv)
+        {
             ble_led_indicator_recv = current;
             send_led_cmd(current);
         }
     }
 
     if (encoder_modifier != 0 && timer_elapsed(encoder_modifier_pressed_ms) >
-                                     ENCODER_MODIFIER_TIMEOUT_MS) {
+                                     ENCODER_MODIFIER_TIMEOUT_MS)
+    {
         unregister_mods(encoder_modifier);
         encoder_modifier = 0;
     }
@@ -207,18 +235,20 @@ void matrix_scan_kb(void) {
 
 void uart_flush_rx_buffer() { BMPAPI->uart.send(NULL, 0); }
 
-void qt_uart_init() {
+void qt_uart_init()
+{
     bmp_uart_config_t uart_config;
-    uart_config.tx_pin      = KQB_PIN_TX;
-    uart_config.rx_pin      = KQB_PIN_RX;
+    uart_config.tx_pin = KQB_PIN_TX;
+    uart_config.rx_pin = KQB_PIN_RX;
     uart_config.rx_callback = uart_recv_callback;
-    uart_config.baudrate    = 115200;
+    uart_config.baudrate = 115200;
     uart_config.rx_protocol = 1;
 
     BMPAPI->uart.init(&uart_config);
 }
 
-void bmp_before_sleep() {
+void bmp_before_sleep()
+{
     bmp_api_config_t config = *BMPAPI->app.get_config();
     config.matrix.diode_direction = 0xff;
     BMPAPI->app.set_config(&config);
@@ -227,30 +257,41 @@ void bmp_before_sleep() {
 
 bool checkSafemodeFlag(bmp_api_config_t const *const config) { return false; }
 
-
 #include "bmp_via.h"
 #include "bmp_config.h"
 
-void dynamic_keymap_reset() {
-    for (int idx = 0; idx < DYNAMIC_KEYMAP_MAX_LEN; idx++) {
+void dynamic_keymap_reset()
+{
+    for (int idx = 0; idx < DYNAMIC_KEYMAP_MAX_LEN; idx++)
+    {
         const uint8_t layer = idx / (MATRIX_COLS_DEFAULT * MATRIX_ROWS_DEFAULT);
         const uint8_t offset =
             idx % (MATRIX_COLS_DEFAULT * MATRIX_ROWS_DEFAULT);
-        const uint8_t          row = offset / MATRIX_COLS_DEFAULT;
-        const uint8_t          col = offset % MATRIX_COLS_DEFAULT;
+        const uint8_t row = offset / MATRIX_COLS_DEFAULT;
+        const uint8_t col = offset % MATRIX_COLS_DEFAULT;
         const bmp_api_keypos_t key = {.row = row, .col = col};
 
-        if (row < MATRIX_MODIFIER_ROW) {
+        if (row < MATRIX_MODIFIER_ROW)
+        {
             BMPAPI->app.set_keycode_to_keymap(
                 layer, &key, idx % (MATRIX_COLS_DEFAULT * MATRIX_ROWS_DEFAULT));
-        } else if (row == MATRIX_MODIFIER_ROW) {
+        }
+        else if (row == MATRIX_MODIFIER_ROW)
+        {
             BMPAPI->app.set_keycode_to_keymap(layer, &key, KC_LCTRL + col);
-        } else if (row == MATRIX_MSBTN_ROW) {
+        }
+        else if (row == MATRIX_MSBTN_ROW)
+        {
             BMPAPI->app.set_keycode_to_keymap(layer, &key, KC_BTN1 + col);
-        } else if (row == MATRIX_MSGES_ROW) {
-            if (col < MATRIX_MSWHEEL_COL) {
+        }
+        else if (row == MATRIX_MSGES_ROW)
+        {
+            if (col < MATRIX_MSWHEEL_COL)
+            {
                 BMPAPI->app.set_keycode_to_keymap(layer, &key, KC_NO);
-            } else {
+            }
+            else
+            {
                 BMPAPI->app.set_keycode_to_keymap(
                     layer, &key, KC_MS_WH_UP + col - MATRIX_MSWHEEL_COL);
             }
@@ -260,18 +301,24 @@ void dynamic_keymap_reset() {
     save_keymap();
 }
 
-static uint8_t         pre_keyreport[8];
+// keymapに移植したためコメント
+// static uint8_t         pre_keyreport[8];
 
-__attribute__((weak)) void report_descriptor_parser_user(uint8_t        dev_num,
+__attribute__((weak)) void report_descriptor_parser_user(uint8_t dev_num,
                                                          uint8_t const *buf,
-                                                         uint16_t       len) {
-    if (BMPAPI->app.get_config()->matrix.diode_direction == 1) {
+                                                         uint16_t len)
+{
+    if (BMPAPI->app.get_config()->matrix.diode_direction == 1)
+    {
         // no descriptor parser
-    } else {
+    }
+    else
+    {
         parse_report_descriptor(dev_num, buf, len);
     }
 }
 
+/* keymap.cに移植したためコメントアウト
 __attribute__((weak)) bool report_parser_user(uint8_t const *buf, uint16_t len,
                                               matrix_row_t *current_matrix) {
     packet_header_t const *packet_header = (packet_header_t const *)buf;
@@ -288,17 +335,21 @@ __attribute__((weak)) bool report_parser_user(uint8_t const *buf, uint16_t len,
 __attribute__((weak)) void on_disconnect_device_user(uint8_t device) {
     memset(pre_keyreport, 0, sizeof(pre_keyreport));
 }
+*/
 
 #include "microshell/core/msconf.h"
 #include "microshell/util/mscmd.h"
 #include "cli.h"
 
-static void check_reset_command(uint8_t const *buf, uint8_t len) {
-    if (len < 3) {
+static void check_reset_command(uint8_t const *buf, uint8_t len)
+{
+    if (len < 3)
+    {
         return;
     }
 
-    if (buf[0] == 0x57 && buf[1] == 0xab && buf[2] == 0xa2) {
+    if (buf[0] == 0x57 && buf[1] == 0xab && buf[2] == 0xa2)
+    {
         const uint8_t ret[] = {0x55, 0xaa, 0xa2, 0xe7, 0x02,
                                0x00, 0x00, 0x00, 0x8b};
         BMPAPI->usb.serial_puts(ret, sizeof(ret));
@@ -307,19 +358,23 @@ static void check_reset_command(uint8_t const *buf, uint8_t len) {
     }
 }
 
-void pass_uart(void *_context) {
+void pass_uart(void *_context)
+{
     uint8_t send_buf[128];
     int32_t btr = BMPAPI->usb.serial_byte_to_read();
     uint8_t idx = 0;
 
-    while (uart_available()) {
+    while (uart_available())
+    {
         BMPAPI->usb.serial_putc(uart_getchar());
     }
 
-    while (btr--) {
+    while (btr--)
+    {
         send_buf[idx++] = BMPAPI->usb.serial_getc();
 
-        if (idx >= sizeof(send_buf)) {
+        if (idx >= sizeof(send_buf))
+        {
             break;
         }
     }
@@ -328,7 +383,8 @@ void pass_uart(void *_context) {
     BMPAPI->uart.send(send_buf, idx);
 }
 
-MSCMD_USER_RESULT usrcmd_chboot(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
+MSCMD_USER_RESULT usrcmd_chboot(MSOPT *msopt, MSCMD_USER_OBJECT usrobj)
+{
     ch559_update_mode = true;
 
     writePinHigh(KQB_PIN_CHRST);
@@ -344,11 +400,11 @@ MSCMD_USER_RESULT usrcmd_chboot(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
     uart_buf_init();
 
     bmp_uart_config_t uart_config;
-    uart_config.tx_pin      = KQB_PIN_TX;
-    uart_config.rx_pin      = KQB_PIN_RX;
+    uart_config.tx_pin = KQB_PIN_TX;
+    uart_config.rx_pin = KQB_PIN_RX;
     uart_config.rx_callback = uart_recv_callback;
     uart_config.rx_protocol = 0;
-    uart_config.baudrate    = 57600;
+    uart_config.baudrate = 57600;
 
     BMPAPI->uart.init(&uart_config);
 
@@ -358,14 +414,17 @@ MSCMD_USER_RESULT usrcmd_chboot(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
     return 0;
 }
 
-MSCMD_USER_RESULT usrcmd_chreset(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
+MSCMD_USER_RESULT usrcmd_chreset(MSOPT *msopt, MSCMD_USER_OBJECT usrobj)
+{
     send_reset_cmd();
 
     return 0;
 }
 
-MSCMD_USER_RESULT usrcmd_chload(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
-    if (msopt->argc < 2) {
+MSCMD_USER_RESULT usrcmd_chload(MSOPT *msopt, MSCMD_USER_OBJECT usrobj)
+{
+    if (msopt->argc < 2)
+    {
         xprintf("chload <time_100ms>\n");
         return 1;
     }
@@ -378,7 +437,8 @@ MSCMD_USER_RESULT usrcmd_chload(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
     return 0;
 }
 
-MSCMD_USER_RESULT usrcmd_chled(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
+MSCMD_USER_RESULT usrcmd_chled(MSOPT *msopt, MSCMD_USER_OBJECT usrobj)
+{
     char arg[16];
     msopt_get_argv(msopt, 1, arg, sizeof(arg));
     uint16_t led = (uint16_t)atoi(arg);
@@ -387,7 +447,8 @@ MSCMD_USER_RESULT usrcmd_chled(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
     return 0;
 }
 
-MSCMD_USER_RESULT usrcmd_chdev(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
+MSCMD_USER_RESULT usrcmd_chdev(MSOPT *msopt, MSCMD_USER_OBJECT usrobj)
+{
     char arg[16];
     msopt_get_argv(msopt, 1, arg, sizeof(arg));
     uint16_t dev = (uint16_t)atoi(arg);
@@ -396,21 +457,26 @@ MSCMD_USER_RESULT usrcmd_chdev(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
     return 0;
 }
 
-MSCMD_USER_RESULT usrcmd_chver(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
+MSCMD_USER_RESULT usrcmd_chver(MSOPT *msopt, MSCMD_USER_OBJECT usrobj)
+{
     extern uint32_t ch559_version;
     xprintf("CH559 FW ver: %d.%d.%d\n", ch559_version >> 16,
             (ch559_version >> 8) & 0xff, ch559_version & 0xff);
     return 0;
 }
 
-MSCMD_USER_RESULT usrcmd_chparser(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
+MSCMD_USER_RESULT usrcmd_chparser(MSOPT *msopt, MSCMD_USER_OBJECT usrobj)
+{
     char arg[16];
     msopt_get_argv(msopt, 1, arg, sizeof(arg));
     uint16_t type = (uint16_t)atoi(arg);
 
-    if (type == 1) {
+    if (type == 1)
+    {
         xprintf("Set parser type: FIXED\n");
-    } else {
+    }
+    else
+    {
         xprintf("Set parser type: DEFAULT\n");
         type = 0;
     }
@@ -423,58 +489,75 @@ MSCMD_USER_RESULT usrcmd_chparser(MSOPT *msopt, MSCMD_USER_OBJECT usrobj) {
     return 0;
 }
 
-bool process_record_kb_bmp(uint16_t keycode, keyrecord_t *record) {
-    if (encoder_modifier != 0 && !is_encoder_action) {
+bool process_record_kb_bmp(uint16_t keycode, keyrecord_t *record)
+{
+    if (encoder_modifier != 0 && !is_encoder_action)
+    {
         unregister_mods(encoder_modifier);
         encoder_modifier = 0;
     }
-    switch (keycode) {
-        case QK_MODS ... QK_MODS_MAX:
-            if (is_encoder_action) {
-                if (record->event.pressed) {
-                    uint8_t current_mods        = keycode >> 8;
-                    encoder_modifier_pressed_ms = timer_read();
-                    if (current_mods != encoder_modifier) {
-                        del_mods(encoder_modifier);
-                        encoder_modifier = current_mods;
-                        add_mods(encoder_modifier);
-                    }
-                    register_code(keycode & 0xff);
-                } else {
-                    unregister_code(keycode & 0xff);
+    switch (keycode)
+    {
+    case QK_MODS ... QK_MODS_MAX:
+        if (is_encoder_action)
+        {
+            if (record->event.pressed)
+            {
+                uint8_t current_mods = keycode >> 8;
+                encoder_modifier_pressed_ms = timer_read();
+                if (current_mods != encoder_modifier)
+                {
+                    del_mods(encoder_modifier);
+                    encoder_modifier = current_mods;
+                    add_mods(encoder_modifier);
                 }
-                return false;
-            } else {
-                return true;
+                register_code(keycode & 0xff);
             }
-            break;
+            else
+            {
+                unregister_code(keycode & 0xff);
+            }
+            return false;
+        }
+        else
+        {
+            return true;
+        }
+        break;
     }
 
-    if (record->event.pressed) {
-        switch (keycode) {
-            case DISABLE_KEY_OVERRIDES:
-            case KEY_OVERRIDE_OFF: {
-                println("Disable key overrides");
-                keyboard_config.override_mode = DISABLE_OVERRIDE;
-                set_key_override(DISABLE_OVERRIDE);
-                eeconfig_update_kb(keyboard_config.raw);
-                return true;
-            }
-            case ENABLE_US_KEY_ON_JP_OS_OVERRIDE: {
-                println(
-                    "Perform as an US keyboard on the OS configured for JP");
-                keyboard_config.override_mode = US_KEY_ON_JP_OS_OVERRIDE;
-                set_key_override(US_KEY_ON_JP_OS_OVERRIDE);
-                eeconfig_update_kb(keyboard_config.raw);
-                return false;
-            } break;
-            case ENABLE_JP_KEY_ON_US_OS_OVERRIDE: {
-                println("Perform as a JP keyboard on the OS configured for US");
-                keyboard_config.override_mode = JP_KEY_ON_US_OS_OVERRIDE;
-                set_key_override(JP_KEY_ON_US_OS_OVERRIDE);
-                eeconfig_update_kb(keyboard_config.raw);
-                return false;
-            } break;
+    if (record->event.pressed)
+    {
+        switch (keycode)
+        {
+        case DISABLE_KEY_OVERRIDES:
+        case KEY_OVERRIDE_OFF:
+        {
+            println("Disable key overrides");
+            keyboard_config.override_mode = DISABLE_OVERRIDE;
+            set_key_override(DISABLE_OVERRIDE);
+            eeconfig_update_kb(keyboard_config.raw);
+            return true;
+        }
+        case ENABLE_US_KEY_ON_JP_OS_OVERRIDE:
+        {
+            println(
+                "Perform as an US keyboard on the OS configured for JP");
+            keyboard_config.override_mode = US_KEY_ON_JP_OS_OVERRIDE;
+            set_key_override(US_KEY_ON_JP_OS_OVERRIDE);
+            eeconfig_update_kb(keyboard_config.raw);
+            return false;
+        }
+        break;
+        case ENABLE_JP_KEY_ON_US_OS_OVERRIDE:
+        {
+            println("Perform as a JP keyboard on the OS configured for US");
+            keyboard_config.override_mode = JP_KEY_ON_US_OS_OVERRIDE;
+            set_key_override(JP_KEY_ON_US_OS_OVERRIDE);
+            eeconfig_update_kb(keyboard_config.raw);
+            return false;
+        }
+        break;
         }
     }
 
