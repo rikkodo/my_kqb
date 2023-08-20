@@ -25,7 +25,8 @@ Keyboard Quantizeの自分用ファームウェア
 ## ビルド方法
 
 1. [ファームウェアのビルドと書き込み](https://sekigon-gonnoc.github.io/Keyboard-Quantizer-B-Build-Guide/build_firmware/)に従ってビルド環境を構築
-2. <qmk\_firmware>下で、`make keyboard_quantizer/kqb:default:uf2`
+2. <qmk\_firmware>/keyboardsにkeyboard\_quantizerという名前で本ディレクトリへのシンボリックリンクを貼る
+3. <qmk\_firmware>下で、`make keyboard_quantizer/kqb:default:uf2`
 
 ## 覚書
 
