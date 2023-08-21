@@ -28,6 +28,12 @@ enum custom_keycodes
     CUSTOM_KEYCODE_START = BMP_SAFE_RANGE,
 };
 
+// スクロールレイヤーかを判定する。
+bool isScrollLayer()
+{
+    return IS_LAYER_ON(8) || IS_LAYER_ON(9);
+}
+
 const key_string_map_t custom_keys_user = {.start_kc = CUSTOM_KEYCODE_START,
                                            .end_kc = CUSTOM_KEYCODE_START,
                                            .key_strings = "\0"};
@@ -61,6 +67,7 @@ static uint8_t kc_no_to_kc_offset = 0;
 static uint8_t btn_release_flag = 0;
 static int16_t wheel_move_v = 0;
 static int16_t wheel_move_h = 0;
+static bool mouse_hold = false;
 
 static uint8_t get_gesture_threshold()
 {
@@ -78,6 +85,15 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record)
     switch (keycode)
     {
     case KC_BTN1 ... KC_BTN5:
+        // scroll layer内でマウスキーを押下したらカーソルに戻す
+        if (isScrollLayer())
+        {
+            mouse_hold = record->event.pressed;
+        }
+        else
+        {
+            mouse_hold = false;
+        }
         mouse_send_flag = true;
         return true;
         break;
@@ -277,12 +293,6 @@ void post_process_record_user(uint16_t keycode, keyrecord_t *record)
     }
 }
 
-// スクロールレイヤーかを判定する。
-bool isScrollLayer()
-{
-    return IS_LAYER_ON(8) || IS_LAYER_ON(9);
-}
-
 void mouse_report_hook(mouse_parse_result_t const *report)
 {
     if (debug_enable)
@@ -352,7 +362,7 @@ void mouse_report_hook(mouse_parse_result_t const *report)
     static int16_t x_rem;
     static int16_t y_rem;
 
-    bool is_scroll = isScrollLayer();
+    bool is_scroll = isScrollLayer() && !mouse_hold;
 
     // scrollが入れ替わったら、残分を消す
     if (is_scroll != is_scroll_prev)
