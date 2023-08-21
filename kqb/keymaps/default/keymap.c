@@ -446,7 +446,7 @@ bool elecom_relacon_parser(uint8_t const *buf, uint16_t len,
         // メディアキーをRemapで割り当て可能なキーに置換する
         if (debug_enable)
         {
-            xprintf("Received_eky\n");
+            xprintf("Relacon Media Key %02x Receieved\n", in);
         }
         // keyboard_quantizer.hのLAYOUTに基づき、 LANG5--LANG9を発火させる
         keypos_t key;
